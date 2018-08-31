@@ -1,0 +1,20 @@
+Stack:
+  TemplateBody:   ../solutions/Main.template.yaml
+  Region:         us-east-1
+  StackName:      Test
+  Capabilities:   [CAPABILITY_IAM]
+  Package:        true
+
+  Tags:
+    company:      Autodesk
+    department:   Fusion
+    project:      MicroserviceInfraTemplate
+
+  Parameters:
+    RepositoryArn:        "arn:aws:codecommit:us-east-1:653483050338:microservice-template"
+    RepositoryBranch:     master
+    InstanceType:         t2.micro
+    AvailabilityZones:    us-east-1a,us-east-1b
+    NumberOfAZs:          2
+    AutoScalingMinSize:   2
+    AutoScalingMaxSize:   4

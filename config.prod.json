@@ -1,0 +1,18 @@
+{
+  "Parameters": {
+    "RepositoryArn":        "arn:aws:codecommit:us-east-1:653483050338:microservice-template",
+    "RepositoryBranch":     "master",
+    "S3BucketName":         "microservice-template-prd",
+    "S3ObjectKey":          "artifect.zip",
+    "InstanceType":         "t2.micro",
+    "AvailabilityZones":    "us-east-1a,us-east-1b",
+    "NumberOfAZs":          "2",
+    "AutoScalingMinSize":   "2",
+    "AutoScalingMaxSize":   "4"
+  },
+  "Tags": {
+    "company": "Autodesk",
+    "department": "Fusion",
+    "enviornment": "Production"
+  }
+}

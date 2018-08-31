@@ -1,0 +1,145 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy an Elastic Beanstalk app stored in s3 via CodePipeline.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Application Configuration
+        Parameters:
+          - S3BucketName
+          - S3ObjectKey
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - AvailabilityZones
+          - NumberOfAZs
+      - Label:
+          default: Capacity Configuration
+        Parameters:
+          - InstanceType
+          - AutoScalingMinSize
+          - AutoScalingMaxSize
+    ParameterLabels:
+      S3BucketName:
+        default: S3 Bucket Name
+      S3ObjectKey:
+        default: Artifect Name
+      AvailabilityZones:
+        default: Availability Zones
+      NumberOfAZs:
+        default: Number Of Availability Zones
+      InstanceType:
+        default: Type of Instance for the Application
+      AutoScalingMinSize:
+        default: Minium Size for Auto Scaling
+      AutoScalingMaxSize:
+        default: Maxium Size for Auto Scaling
+
+Parameters:
+
+  S3BucketName:
+    Description: The S3 bucket name which stores the artifect.
+    Type: String
+    default: "microservice-template"
+    AllowedPattern: "[\\x20-\\x7E]*"
+    ConstraintDescription: Can contain only ASCII characters.
+
+  S3ObjectKey:
+    Description: The artifect name in s3 bucket
+    Type: String
+    default: "artifect.zip"
+    AllowedPattern: "[\\x20-\\x7E]*"
+    ConstraintDescription: Can contain only ASCII characters.
+
+  AvailabilityZones:
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+    Description: List of Availability Zones to use for the subnets in the VPC.
+    default: "us-east-1a,us-east-1b"
+
+  NumberOfAZs:
+    Type: String
+    Description: Number of Availability Zones to use in the VPC. This must match your
+      selections in the list of Availability Zones parameter. (2 - 4)
+    AllowedValues:
+      - '2'
+      - '3'
+      - '4'
+    Default: '2'
+
+  InstanceType:
+    Type: String
+    Description: EC2 instance type.
+    Default: t1.micro
+
+  AutoScalingMinSize:
+    Type: Number
+    Description: The minium size of auto scaling group.
+    Default: 1
+    MinValue: 1
+    MaxValue: 10000
+
+  AutoScalingMaxSize:
+    Type: Number
+    Description: The maxium size of auto scaling group.
+    Default: 1
+    MinValue: 1
+    MaxValue: 10000
+
+
+Resources:
+  Network:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: Components/Network.template.yaml
+      Parameters:
+        AvailabilityZones: !Join
+          - ','
+          - !Ref AvailabilityZones
+        NumberOfAZs: !Ref NumberOfAZs
+        CreatePrivateSubnets: true
+        KeyPairName: nanook-ray-aws-us-east-1
+
+  EBApplication:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - Network
+    Properties:
+      TemplateURL: Components/Beanstalk.template.yaml
+      Parameters:
+        VPCId: !GetAtt Network.Outputs.VPCID
+        PublicSubnets: !Join
+          - ','
+          - [!GetAtt Network.Outputs.PublicSubnet1ID, !GetAtt Network.Outputs.PublicSubnet2ID]
+        PrivateSubnets: !Join
+          - ','
+          - [!GetAtt Network.Outputs.PrivateSubnet1AID, !GetAtt Network.Outputs.PrivateSubnet2AID]
+        AutoScalingMinSize: !Ref AutoScalingMinSize
+        AutoScalingMaxSize: !Ref AutoScalingMaxSize
+        InstanceType: !Ref InstanceType
+
+  CiCdPipeline:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - EBApplication
+    Properties:
+      TemplateURL: Components/CiCd-s3-eb.template.yaml
+      Parameters:
+        S3BucketName: !Ref S3BucketName
+        S3ObjectKey: !Ref S3ObjectKey
+        EBApplicationName: !GetAtt EBApplication.Outputs.ApplicationName
+        EBEnvironmentName: !GetAtt EBApplication.Outputs.EnvironmentName
+
+Outputs:
+  ApplicationName:
+    Description: Name of the Application
+    Value: !GetAtt EBApplication.Outputs.ApplicationName
+  EnvironmentName:
+    Description: Name of the Environment
+    Value: !GetAtt EBApplication.Outputs.EnvironmentName
+  EndpointURL:
+    Description: The URL to the load balancer for this environment.
+    Value: !GetAtt EBApplication.Outputs.EndpointURL
+  CodePipelineURL:
+    Description: Pipeline URL
+    Value: !GetAtt CiCdPipeline.Outputs.CodePipelineURL

@@ -1,0 +1,17 @@
+Stack:
+  TemplateBody:   ../solutions/CfnCD/SimpleCfnCd.template.yaml
+  Region:         us-east-1
+  StackName:      AppInfraCiCdStack
+  Capabilities:   [CAPABILITY_IAM]
+
+  Tags:
+    company:      Autodesk
+    department:   Fusion
+    project:      MicroserviceInfraTemplate
+
+  Parameters:
+    CfnRepoArn:         "arn:aws:codecommit:us-east-1:653483050338:MicroserviceInfraTemplate"
+    CfnStackName:       AppStack
+    ApprovalEmails:     weiliang.qian@autodesk.com
+    NumOfEmails:        1
+    UseStaging:         "no"

@@ -1,0 +1,168 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Deploy an Elastic Beanstalk app stored in s3 via CodePipeline.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Application Configuration
+      Parameters:
+      - S3BucketName
+      - S3ObjectKey
+    - Label:
+        default: Network Configuration
+      Parameters:
+      - AvailabilityZones
+      - NumberOfAZs
+    - Label:
+        default: Capacity Configuration
+      Parameters:
+      - InstanceType
+      - AutoScalingMinSize
+      - AutoScalingMaxSize
+    ParameterLabels:
+      AutoScalingMaxSize:
+        default: Maxium Size for Auto Scaling
+      AutoScalingMinSize:
+        default: Minium Size for Auto Scaling
+      AvailabilityZones:
+        default: Availability Zones
+      InstanceType:
+        default: Type of Instance for the Application
+      NumberOfAZs:
+        default: Number Of Availability Zones
+      S3BucketName:
+        default: S3 Bucket Name
+      S3ObjectKey:
+        default: Artifect Name
+Outputs:
+  ApplicationName:
+    Description: Name of the Application
+    Value:
+      Fn::GetAtt:
+      - EBApplication
+      - Outputs.ApplicationName
+  CodePipelineURL:
+    Description: Pipeline URL
+    Value:
+      Fn::GetAtt:
+      - CiCdPipeline
+      - Outputs.CodePipelineURL
+  EndpointURL:
+    Description: The URL to the load balancer for this environment.
+    Value:
+      Fn::GetAtt:
+      - EBApplication
+      - Outputs.EndpointURL
+  EnvironmentName:
+    Description: Name of the Environment
+    Value:
+      Fn::GetAtt:
+      - EBApplication
+      - Outputs.EnvironmentName
+Parameters:
+  AutoScalingMaxSize:
+    Default: 1
+    Description: The maxium size of auto scaling group.
+    MaxValue: 10000
+    MinValue: 1
+    Type: Number
+  AutoScalingMinSize:
+    Default: 1
+    Description: The minium size of auto scaling group.
+    MaxValue: 10000
+    MinValue: 1
+    Type: Number
+  AvailabilityZones:
+    Description: List of Availability Zones to use for the subnets in the VPC.
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+  InstanceType:
+    Default: t1.micro
+    Description: EC2 instance type.
+    Type: String
+  NumberOfAZs:
+    AllowedValues:
+    - '2'
+    - '3'
+    - '4'
+    Default: '2'
+    Description: Number of Availability Zones to use in the VPC. This must match your
+      selections in the list of Availability Zones parameter. (2 - 4)
+    Type: String
+  S3BucketName:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Description: The S3 bucket name which stores the artifect.
+    Type: String
+  S3ObjectKey:
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
+    Description: The artifect name in s3 bucket
+    Type: String
+Resources:
+  CiCdPipeline:
+    DependsOn:
+    - EBApplication
+    Properties:
+      Parameters:
+        EBApplicationName:
+          Fn::GetAtt:
+          - EBApplication
+          - Outputs.ApplicationName
+        EBEnvironmentName:
+          Fn::GetAtt:
+          - EBApplication
+          - Outputs.EnvironmentName
+        S3BucketName:
+          Ref: S3BucketName
+        S3ObjectKey:
+          Ref: S3ObjectKey
+      TemplateURL: https://s3.amazonaws.com/cfns3kai/b98f29ea20ae690c05cd7a571f041584.template
+    Type: AWS::CloudFormation::Stack
+  EBApplication:
+    DependsOn:
+    - Network
+    Properties:
+      Parameters:
+        AutoScalingMaxSize:
+          Ref: AutoScalingMaxSize
+        AutoScalingMinSize:
+          Ref: AutoScalingMinSize
+        InstanceType:
+          Ref: InstanceType
+        PrivateSubnets:
+          Fn::Join:
+          - ','
+          - - Fn::GetAtt:
+              - Network
+              - Outputs.PrivateSubnet1AID
+            - Fn::GetAtt:
+              - Network
+              - Outputs.PrivateSubnet2AID
+        PublicSubnets:
+          Fn::Join:
+          - ','
+          - - Fn::GetAtt:
+              - Network
+              - Outputs.PublicSubnet1ID
+            - Fn::GetAtt:
+              - Network
+              - Outputs.PublicSubnet2ID
+        VPCId:
+          Fn::GetAtt:
+          - Network
+          - Outputs.VPCID
+      TemplateURL: https://s3.amazonaws.com/cfns3kai/0e9a40cb28d1be5da402d674846f5ee8.template
+    Type: AWS::CloudFormation::Stack
+  Network:
+    Properties:
+      Parameters:
+        AvailabilityZones:
+          Fn::Join:
+          - ','
+          - Ref: AvailabilityZones
+        CreatePrivateSubnets: true
+        KeyPairName: nanook-ray-aws-us-east-1
+        NumberOfAZs:
+          Ref: NumberOfAZs
+      TemplateURL: https://s3.amazonaws.com/cfns3kai/98a41680d5729150fcf6c7d312858a33.template
+    Type: AWS::CloudFormation::Stack
